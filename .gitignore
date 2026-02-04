@@ -1,0 +1,28 @@
+# Dependencies
+node_modules/
+venv*/
+__pycache__/
+
+# Environment variables (Security)
+.env
+.env.local
+
+# Build artifacts
+dist/
+build/
+*.spec
+
+# Logs and databases
+*.log
+*.sqlite
+conversations.csv
+whatsapp_session/
+session.json
+
+# OS generated
+.DS_Store
+Thumbs.db
+
+# IDEs
+.vscode/
+.idea/

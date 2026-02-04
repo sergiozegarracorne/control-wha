@@ -1,0 +1,60 @@
+INFO:     Started server process [10884]
+INFO:     Waiting for application startup.
+Task exception was never retrieved
+future: <Task finished name='Task-11' coro=<AsyncClient._handle_eio_message() done, defined at D:\xampp\htdocs\GIT\control-wha\venv_pw\Lib\site-packages\socketio\async_client.py:562> exception=UnicodeEncodeError('charmap', '\u2705 Conectado al Socket Server (Node.js)', 0, 1, 'character maps to <undefined>')>
+Traceback (most recent call last):
+  File "D:\xampp\htdocs\GIT\control-wha\venv_pw\Lib\site-packages\socketio\async_client.py", line 575, in _handle_eio_message
+    await self._handle_connect(pkt.namespace, pkt.data)
+  File "D:\xampp\htdocs\GIT\control-wha\venv_pw\Lib\site-packages\socketio\async_client.py", line 397, in _handle_connect
+    await self._trigger_event('connect', namespace=namespace)
+  File "D:\xampp\htdocs\GIT\control-wha\venv_pw\Lib\site-packages\socketio\async_client.py", line 471, in _trigger_event
+    ret = await handler(*args)
+          ^^^^^^^^^^^^^^^^^^^^
+  File "D:\xampp\htdocs\GIT\control-wha\app\main.py", line 19, in connect
+    print("\u2705 Conectado al Socket Server (Node.js)")
+  File "C:\Users\szegarrac\AppData\Local\Programs\Python\Python312\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2705' in position 0: character maps to <undefined>
+INFO:     Application startup complete.
+ERROR:    [Errno 10048] error while attempting to bind on address ('0.0.0.0', 8000): solo se permite un uso de cada direcci¾n de socket (protocolo/direcci¾n de red/puerto)
+INFO:     Waiting for application shutdown.
+disconnect async handler error
+Traceback (most recent call last):
+  File "D:\xampp\htdocs\GIT\control-wha\venv_pw\Lib\site-packages\socketio\async_client.py", line 471, in _trigger_event
+    ret = await handler(*args)
+                ^^^^^^^^^^^^^^
+TypeError: disconnect() takes 0 positional arguments but 1 was given
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "D:\xampp\htdocs\GIT\control-wha\venv_pw\Lib\site-packages\engineio\async_client.py", line 483, in _trigger_event
+    ret = await self.handlers[event](*args)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\xampp\htdocs\GIT\control-wha\venv_pw\Lib\site-packages\socketio\async_client.py", line 596, in _handle_eio_disconnect
+    await self._trigger_event('disconnect', n, reason)
+  File "D:\xampp\htdocs\GIT\control-wha\venv_pw\Lib\site-packages\socketio\async_client.py", line 476, in _trigger_event
+    ret = await handler(*args[:-1])
+          ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\xampp\htdocs\GIT\control-wha\app\main.py", line 27, in disconnect
+    print("\U0001f50c Desconectado del Socket Server")
+  File "C:\Users\szegarrac\AppData\Local\Programs\Python\Python312\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\U0001f50c' in position 0: character maps to <undefined>
+INFO:     Application shutdown complete.
+Starting Playwright Service...
+Loading session from D:\xampp\htdocs\GIT\control-wha\session.json
+Navigating to https://web.whatsapp.com
+Diagnostico: Verificando acceso a http://jsjperu.net:8000...
+Waiting for login (pane-side)...
+Diagnostico Fallido: 
+   -> Posible bloqueo de Firewall o error DNS en Python.
+Intentando conectar Socket.IO...
+Error waiting for login: Page.wait_for_selector: Target page, context or browser has been closed
+Call log:
+  - waiting for locator("#pane-side") to be visible
+    - waiting for" https://web.whatsapp.com/?post_logout=1" navigation to finish...
+    - navigated to "https://web.whatsapp.com/?post_logout=1"
+
