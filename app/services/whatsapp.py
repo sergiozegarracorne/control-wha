@@ -3,6 +3,7 @@ import base64
 import os
 from playwright.async_api import async_playwright, Page, BrowserContext
 from app.core import config
+from app.services.queue_manager import queue_manager
 
 class WhatsAppService:
     _instance = None
@@ -16,10 +17,11 @@ class WhatsAppService:
             cls._instance = super(WhatsAppService, cls).__new__(cls)
         return cls._instance
 
-    async def start(self):
+    async def start(self, on_browser_close_callback=None):
         if self.page:
             return
 
+        self.on_browser_close_callback = on_browser_close_callback
         print("Starting Playwright Service (Persistent Mode)...")
         self.playwright = await async_playwright().start()
         
@@ -49,6 +51,9 @@ class WhatsAppService:
                 user_data_dir=config.USER_DATA_DIR,
                 **launch_args
             )
+            # Monitor Browser Closure
+            self.context.on("close", lambda: asyncio.create_task(self.on_context_closed()))
+
         except Exception as e:
             print(f"Error launching persistent context: {e}")
             # Fallback if channel fails or locked?
@@ -60,11 +65,62 @@ class WhatsAppService:
         else:
             self.page = await self.context.new_page()
         
+        # Start Queue Consumer Background Task
+        asyncio.create_task(self.process_queue_loop())
+
         try:
             print(f"Navigating to {config.WHATSAPP_URL}")
             await self.page.goto(config.WHATSAPP_URL, timeout=60000)
         except Exception as e:
             print(f"Error navigating: {e}")
+
+    async def process_queue_loop(self):
+        """Background task to process messages from SQLite Queue sequentially."""
+        print("🚀 Queue Consumer Started: Waiting for messages...")
+        
+        while True:
+            try:
+                # 1. Get next pending message
+                msg = queue_manager.get_next_pending()
+                
+                if msg:
+                    print(f"🔄 Processing Message ID {msg['id']} for {msg['phone']}...")
+                    
+                    try:
+                        # 1.5 Check for Duplicates (Anti-Spam)
+                        # Only if threshold > 0 (0 means disabled)
+                        if config.SIMILARITY_THRESHOLD > 0:
+                            threshold = config.SIMILARITY_THRESHOLD / 100.0
+                            is_dup, reason = queue_manager.check_duplicate(msg['phone'], msg['message'], exclude_id=msg['id'], threshold=threshold)
+                            
+                            if is_dup:
+                                print(f"🛑 SKIP Message ID {msg['id']}: {reason}")
+                                queue_manager.mark_completed(msg['id'], status='DUPLICATE', error=reason)
+                                continue
+
+                        # 2. Add random delay to look human and avoid race conditions
+                        await asyncio.sleep(2) 
+
+                        # 3. Send Message
+                        await self.send_message(msg['phone'], msg['message'], msg.get('image_path'))
+                        
+                        # 4. Mark as SENT
+                        queue_manager.mark_completed(msg['id'], status='SENT')
+                        print(f"✅ Message ID {msg['id']} SENT successfully.")
+                        
+                        # Throttle: Wait a bit more after success
+                        await asyncio.sleep(3) 
+
+                    except Exception as e:
+                        print(f"❌ Error sending Message ID {msg['id']}: {e}")
+                        queue_manager.mark_completed(msg['id'], status='ERROR', error=str(e))
+                else:
+                    # No messages, wait before polling again
+                    await asyncio.sleep(3)
+
+            except Exception as e:
+                print(f"⚠️ Safety Loop Error: {e}")
+                await asyncio.sleep(5)
 
     async def get_status(self):
         if not self.page:
@@ -176,30 +232,66 @@ class WhatsAppService:
     def log_message(self, phone, message, status):
         try:
             import csv
+            import os
             from datetime import datetime
             
-            csv_file = os.path.join(config.EXEC_DIR, "conversations.csv")
-            file_exists = os.path.exists(csv_file)
+            # 1. Try default location (Exe folder)
+            csv_path = os.path.join(config.EXEC_DIR, "conversations.csv")
             
-            with open(csv_file, mode='a', newline='', encoding='utf-8') as f:
-                writer = csv.writer(f)
-                if not file_exists:
-                    writer.writerow(["Timestamp", "Phone", "Message", "Status"])
+            # 2. If blocked or read-only, try AppData
+            if not os.access(config.EXEC_DIR, os.W_OK):
+                appdata = os.getenv('APPDATA')
+                if appdata:
+                    csv_path = os.path.join(appdata, "ControlWHA", "conversations.csv")
+                    os.makedirs(os.path.dirname(csv_path), exist_ok=True)
+
+            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            
+            try:
+                # Try writing
+                file_exists = os.path.exists(csv_path)
+                with open(csv_path, mode='a', newline='', encoding='utf-8') as f:
+                    writer = csv.writer(f)
+                    if not file_exists:
+                        writer.writerow(["Timestamp", "Phone", "Message", "Status"])
+                    writer.writerow([timestamp, phone, message, status])
+                print(f"Logged to CSV: {csv_path}")
+            
+            except PermissionError:
+                print(f"⚠️ CSV Locked or Permission Denied: {csv_path}. Trying backup file...")
+                # 3. Fallback: Create a unique backup file if main is locked (e.g. open in Excel)
+                backup_name = f"conversations_{datetime.now().strftime('%Y%m%d')}.csv"
+                backup_path = os.path.join(os.path.dirname(csv_path), backup_name)
                 
-                timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                writer.writerow([timestamp, phone, message, status])
-                print(f"Logged to CSV: {phone}")
+                with open(backup_path, mode='a', newline='', encoding='utf-8') as f:
+                    writer = csv.writer(f)
+                    writer.writerow([timestamp, phone, message, status])
+                print(f"✅ Logged to BACKUP CSV: {backup_path}")
+
         except Exception as e:
-            print(f"Error logging to CSV: {e}")
+            print(f"❌ Error logging to CSV (All attempts failed): {e}")
             
     async def get_messages(self, phone):
         pass
 
+    async def on_context_closed(self):
+        print("⚠️ Browser Context Closed!")
+        self.page = None
+        self.context = None
+        
+        if self.on_browser_close_callback:
+            print("Triggering on_browser_close_callback...")
+            await self.on_browser_close_callback()
+
     async def close(self):
-        print("Closing persistent context...")
+        print("Closing Playwright Service...")
         if self.context:
             await self.context.close()
         if self.playwright:
             await self.playwright.stop()
+        
+        self.page = None
+        self.context = None
+        self.playwright = None
 
 service = WhatsAppService()

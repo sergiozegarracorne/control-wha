@@ -33,25 +33,24 @@ async def connect_error(data):
 async def disconnect():
     print("Desconectado del Socket Server")
 
-@sio.event
-async def enviar_whatsapp(data):
+@sio.on('enviar_whatsapp')
+async def on_mensaje(data):
     """
     Evento recibido desde el servidor Node.js.
     Data esperada: { "phone_number": "...", "message": "...", "image_path": "..." }
     """
     print(f"📩 Evento recibido: enviar_whatsapp -> {data}")
     phone = data.get('phone_number')
-    msg = data.get('message')
-    img = data.get('image_path')
+    message = data.get('message')
+    image_path = data.get('image_path')
     
-    if phone and msg:
-        success = await service.send_message(phone, msg, img)
-        if success:
-            print(f"✅ Mensaje enviado a {phone}")
-        else:
-            print(f"❌ Fallo al enviar a {phone}")
+    if phone and message:
+        print(f"📥 Encolando mensaje para {phone}...")
+        # Import dynamically to avoid circular imports if any (though unlikely here)
+        from app.services.queue_manager import queue_manager
+        queue_manager.add_message(phone, message, image_path)
     else:
-        print("⚠️ Datos incompletos en el evento")
+        print("⚠️ Datos incompletos en el evento (Falta phone o message)")
 
 app = FastAPI(title="Control-WHA (Playwright + Socket.IO)")
 
@@ -160,11 +159,24 @@ async def startup_event():
         print(f"Diagnostico Fallido: {e}")
         print("   -> Posible bloqueo de Firewall o error DNS en Python.")
 
+    # Define Callback for Browser Closure
+    async def on_browser_closed():
+        print("🔴 Navegador cerrado! Notificando al servidor...")
+        await sio.emit('client_status', {'ruc': config.RUC, 'status': 'browser_closed'})
+
     try:
-        await service.start()
+        await service.start(on_browser_close_callback=on_browser_closed)
         asyncio.create_task(service.wait_for_login())
     except Exception as e:
         print(f"⚠️ Error al iniciar WhatsApp Service (probablemente faltan navegadores): {e}")
+
+    # Register Connect Handler
+    @sio.event
+    async def connect():
+        print(f"✅ Conectado al Socket Server! ID: {sio.sid}")
+        # Send RUC and TOKEN for authentication
+        await sio.emit('register', {'ruc': config.RUC, 'token': config.TOKEN})
+
 
     # Listen for duplicate session disconnect
     @sio.on('force_disconnect')

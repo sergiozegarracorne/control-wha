@@ -39,6 +39,11 @@ PORT = int(get_config("General", "PORT", "8000"))
 
 # RUC (Client Identifier)
 RUC = get_config("General", "RUC", "10203040500")
+# Auth Token
+TOKEN = get_config("General", "TOKEN", "no_token")
+
+# Similarity Threshold (0-100). Default 90. 0 = Disabled.
+SIMILARITY_THRESHOLD = int(get_config("General", "SIMILARITY_THRESHOLD", "90"))
 
 # Socket URL (Socket Server)
 SOCKET_URL = get_config("General", "SOCKET_URL", "http://jsjperu.net:8000")

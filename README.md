@@ -6,30 +6,35 @@ Control-WHA es una solución robusta para enviar mensajes y archivos multimedia 
 
 ---
 
-## 🚀 Características Principales
+## 🚀 Nuevas Características (v2.0)
 
-### 1. 🛡️ Seguridad y Anti-Ban
+### 1. 🛡️ Portable y Sin Instalación
 
-- Usa un navegador **Chromium real** (no APIs no oficiales), lo que reduce drásticamente el riesgo de bloqueo.
-- Mantiene la sesión de WhatsApp Web persistente (no necesitas escanear el QR cada vez).
+- **Ejecutable Único**: Copia la carpeta y funciona.
+- **Base de Datos Inteligente**: Si no puede escribir en la carpeta de instalación, usa automáticamente `%APPDATA%` o carpetas temporales. ¡Cero errores de permisos!
+- **Sesión Persistente**: Guarda el login de WhatsApp en una subcarpeta `whatsapp_session`, permitiendo mover el programa sin perder la sesión.
 
-### 2. ⚡ Ruteo Inteligente por RUC
+### 2. 📨 Cola de Mensajería (Queue) Robust
 
-- El sistema soporta múltiples clientes conectados simultáneamente.
-- Cada mensaje se enruta al terminal específico usando el **RUC** del negocio.
+- **SQLite Integrado**: Procesa miles de mensajes sin colapsar el navegador.
+- **Procesamiento Secuencial**: Envía 1 a 1 para comportamiento humano.
+- **Reintentos y Estados**: Monitorea PENDING, PROCESSING, SENT, ERROR.
 
-### 3. 🔒 Política de Sesión Única
+### 3. � Filtro Anti-Spam Inteligente
 
-- Protección contra duplicados: Si se intenta conectar un segundo terminal con el mismo RUC, el sistema **desconecta automáticamente al anterior** y muestra una alerta de seguridad.
+- **Detección de Duplicados**: Evita enviar el mismo mensaje al mismo número dos veces por error.
+- **Ventana de Tiempo**: Solo bloquea si se repite en menos de **60 segundos**.
+- **Comparación Exacta & Fuzzy**: (Configurable) Evita que pequeños cambios saturen al cliente.
 
-### 4. 📝 Registro Local (Log CSV)
+### 4. �️ Monitoreo de Estado
 
-- Cada mensaje enviado (exitoso o fallido) se guarda en un archivo `conversations.csv` localmente para auditoría.
+- **Detector de Cierres**: Si el usuario cierra el navegador, el sistema avisa inmediatamente al servidor y al frontend ("Browser Closed Alert").
+- **Logs CSV Blindados**: Registra todo en `conversations.csv`. Si el archivo está abierto/bloqueado por Excel, crea un backup automático para no perder datos.
 
-### 5. 🧙‍♂️ Asistente de Configuración (Onboarding)
+### 5. ⚡ Ruteo Inteligente por RUC
 
-- Interfaz gráfica (GUI) amigable para la primera ejecución.
-- Solicita el RUC del negocio y aceptación de términos de responsabilidad.
+- Soporte Multi-Cliente: Conecta cientos de negocios simultáneamente.
+- **Política de Candado**: Si alguien intenta usar tu RUC en otra PC, el sistema protege la sesión original y bloquea al intruso.
 
 ---
 
@@ -41,70 +46,44 @@ graph LR
     SERVER -- Socket.IO (RUC) --> CLIENT(Cliente Python PC Local)
     CLIENT -- Playwright --> WHA[WhatsApp Web]
     WHA --> USER[Cliente Final]
+    CLIENT -- Status --> SERVER
 ```
 
 ---
 
-## 📦 Instalación y Uso
+## 📦 Uso Rápido
 
-### A. Servidor (Node.js)
+### A. Cliente (Usuario Final)
 
-El "cerebro" que gestiona las conexiones.
+1.  Descargar la carpeta `dist`.
+2.  Ejecutar **`WhatsAppClient.exe`**.
+3.  Ingresar **RUC** y **Token** en el Asistente de Configuración.
+4.  Escanear QR de WhatsApp.
+5.  ¡Listo! Minimizar y dejar trabajando.
 
-1.  Ir a carpeta `socket-server`.
+### B. Servidor (Despliegue)
+
+1.  `cd socket-server`
 2.  `npm install`
-3.  Configurar `.env` (puerto).
-4.  `node index.js`
+3.  `node index.js` (Recomendado usar PM2: `pm2 start index.js`)
 
-**Endpoints API:**
+**API Endpoint:**
 
-- `POST /api/venta`: Enviar mensaje.
+- `POST /api/venta`
   ```json
-  { "ruc": "2060...", "phone_number": "519...", "message": "Hola!" }
+  {
+    "ruc": "20600000001",
+    "phone_number": "51999999999",
+    "message": "Hola, su comprobante es..."
+  }
   ```
-- `GET /api/clients`: Ver nodos conectados.
-- `POST /api/disconnect`: Forzar desconexión.
-
----
-
-### B. Cliente (Python / Executable)
-
-El "robot" que va en la computadora del negocio.
-
-#### Opción 1: Ejecutable (Recomendado para Usuario Final)
-
-1.  Descargar/Copiar la carpeta `dist`.
-2.  Ejecutar `WhatsAppClient.exe`.
-3.  Seguir el asistente para ingresar el RUC.
-4.  Escanear el código QR de WhatsApp una sola vez.
-
-#### Opción 2: Código Fuente (Desarrollo)
-
-1.  Instalar Python 3.12+.
-2.  `pip install -r requirements.txt`
-3.  `playwright install chromium`
-4.  Ejecutar:
-    ```bash
-    python run.py
-    ```
-
----
-
-## ⚠️ Aviso Legal (Disclaimer)
-
-Esta herramienta es una **Versión Beta** desarrollada para fines de automatización interna y pruebas.
-
-- No tiene afiliación con WhatsApp Inc. ni Meta Platforms.
-- El usuario asume la responsabilidad total por el uso de la herramienta.
-- Se recomienda usar con intervalos de tiempo prudentes para evitar filtros de SPAM.
 
 ---
 
 ## 🛠️ Tecnologías
 
-- **Python 3**: Lógica del cliente.
-- **Playwright**: Automatización del navegador.
-- **Node.js + Express**: Servidor API.
-- **Socket.IO**: Comunicación tiempo real.
-- **Tkinter**: Interfaz de configuración.
-- **PyInstaller**: Empaquetado de ejecutable.
+- **Python 3.12 + Playwright**: Automatización Browser.
+- **Node.js + Socket.IO**: Realtime Server.
+- **SQLite**: Cola persistente.
+- **TheFuzz**: Algoritmos de similitud de texto.
+- **Tkinter**: GUI nativa.

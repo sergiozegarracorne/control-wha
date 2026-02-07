@@ -19,6 +19,10 @@ HEADLESS = False
 PORT = 8000
 # RUC (Identificador único para el servidor)
 RUC = 00000000000
+# Token de Seguridad (Debe coincidir con auth.json del servidor)
+TOKEN =
+# Similitud para detectar duplicados (0-100). 0 para desactivar.
+SIMILARITY_THRESHOLD = 90
 # URL del Servidor Socket.IO (Node.js)
 SOCKET_URL = http://jsjperu.net:8000
 
@@ -93,12 +97,20 @@ def run_wizard():
     lbl_title = tk.Label(root, text="¡Bienvenido!", font=("Arial", 16, "bold"))
     lbl_title.pack(pady=(10, 5))
 
-    lbl_instr = tk.Label(root, text="Ingrese el RUC de su negocio:", font=("Arial", 10))
-    lbl_instr.pack(pady=2)
+    lbl_ruc = tk.Label(root, text="RUC:", font=("Arial", 9, "bold"))
+    lbl_ruc.pack(pady=(10, 0))
 
     entry_ruc = tk.Entry(root, font=("Arial", 12), justify='center', width=20)
     entry_ruc.insert(0, "")
-    entry_ruc.pack(pady=5)
+    entry_ruc.pack(pady=2)
+
+    # TOKEN INPUT
+    lbl_token = tk.Label(root, text="Token de Seguridad:", font=("Arial", 9, "bold"))
+    lbl_token.pack(pady=(5, 0))
+
+    entry_token = tk.Entry(root, font=("Arial", 11), justify='center', width=25, show="*")
+    entry_token.insert(0, "")
+    entry_token.pack(pady=2)
 
     # --- DISCLAIMER SECTION ---
     disclaimer_frame = tk.Frame(root, borderwidth=1, relief="solid", padx=10, pady=10)
@@ -130,12 +142,28 @@ def run_wizard():
 
     # --- SAVE BUTTON ---
     def on_save():
-        val = entry_ruc.get().strip()
-        if not val or val == "00000000000" or len(val) < 8:
+        ruc_val = entry_ruc.get().strip()
+        token_val = entry_token.get().strip()
+        
+        if not ruc_val or ruc_val == "00000000000" or len(ruc_val) < 8:
             messagebox.showerror("Error", "Por favor ingresa un RUC válido.")
             return
+
+        if not token_val:
+            messagebox.showerror("Error", "El Token de seguridad es obligatorio.")
+            return
+
+        # Custom save function handling both
+        config = configparser.ConfigParser()
+        config.read(CONFIG_PATH)
+        if not config.has_section("General"): config.add_section("General")
         
-        save_ruc(val)
+        config.set("General", "RUC", ruc_val)
+        config.set("General", "TOKEN", token_val)
+        
+        with open(CONFIG_PATH, "w", encoding="utf-8") as f:
+            config.write(f)
+
         messagebox.showinfo("Éxito", "Configuración guardada.\nEl sistema se iniciará ahora.")
         root.destroy()
 
